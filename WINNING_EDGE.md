@@ -5,7 +5,7 @@
 
 ---
 
-## 1. ☐ Postmortem-Grounded Scenarios
+## 1. [x] Postmortem-Grounded Scenarios
 **Impact: 🔥🔥🔥 | Effort: Low**
 
 Base scenarios on REAL published incident postmortems. Cite the actual URL.
@@ -66,7 +66,7 @@ Key findings:
 
 ---
 
-## 3. ☐ Procedural Scenario Generation
+## 3. [x] Procedural Scenario Generation
 **Impact: 🔥🔥🔥 | Effort: Medium**
 
 Don't just hardcode 15 scenarios. Build a generator that creates variations:
@@ -192,8 +192,8 @@ Add this to README — speaks directly to evaluators:
 | When | What | Status |
 |---|---|---|
 | During core build | #5 Technical details | ☐ |
-| During scenario creation | #1 Postmortem grounding | ☐ |
-| During scenario creation | #3 Procedural generation | ☐ |
+| During scenario creation | #1 Postmortem grounding | [x] |
+| During scenario creation | #3 Procedural generation | [x] |
 | After environment works | #6 Sample trajectory | ☐ |
 | After deployment | #2 Run inference + data | ☐ |
 | After deployment | #4 Record video | ☐ |
