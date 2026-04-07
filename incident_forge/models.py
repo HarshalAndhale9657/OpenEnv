@@ -6,9 +6,10 @@ These define the contract between agent and environment.
 """
 
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
-from pydantic import Field
+from pydantic import Field, field_validator
+import json
 
 from openenv.core.env_server import Action, Observation, State
 
@@ -48,6 +49,18 @@ class IncidentAction(Action):
     reasoning: str = Field(
         default="", description="Agent's reasoning for this action (optional)"
     )
+
+    @field_validator("parameters", mode="before")
+    @classmethod
+    def parse_params(cls, v: Any) -> Dict[str, Any]:
+        if isinstance(v, str):
+            if not v.strip():
+                return {}
+            try:
+                return json.loads(v)
+            except json.JSONDecodeError:
+                raise ValueError("Parameters must be a valid JSON dictionary")
+        return v or {}
 
 
 class IncidentObservation(Observation):
