@@ -20,7 +20,7 @@ COPY . /app/
 ENV ENABLE_WEB_INTERFACE=true
 ENV PYTHONUNBUFFERED=1
 ENV PORT=8000
-ENV WORKERS=4
+ENV WORKERS=1
 ENV MAX_CONCURRENT_ENVS=100
 
 # Health check — verifies the server is responsive using Python
