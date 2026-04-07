@@ -1,0 +1,43 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+*.egg-info
+dist/
+build/
+.eggs/
+
+# Virtual environments
+.venv
+venv
+env
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project docs (not needed in container)
+PROBLEM_STATEMENT.md
+WINNING_EDGE.md
+IMPLEMENTATION_PLAN.md
+PROGRESS.md
+problem.md
+
+# Outputs (generated at runtime)
+outputs/
+*.log
+
+# Environment
+.env
+.env.*

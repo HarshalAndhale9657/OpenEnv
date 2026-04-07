@@ -1,0 +1,12 @@
+spec_version: 1
+name: incident_forge
+version: "1.0.0"
+description: >
+  Production Incident Response RL Environment — trains LLMs to diagnose
+  and remediate production incidents in a simulated 7-service microservice
+  architecture. Features 15 scenarios across 3 difficulty levels, procedural
+  generation, 5-dimensional reward scoring, and curriculum learning.
+type: agent-env
+runtime: docker
+app: server/app.py
+port: 8000
