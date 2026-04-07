@@ -11,49 +11,68 @@ tags:
 ---
 
 # IncidentForge 🔥
+
 ### AI-Powered Production Incident Response Training Environment
+
 > **An OpenEnv RL environment that trains Large Language Models to become expert Site Reliability Engineers — capable of diagnosing, triaging, and remediating production incidents in complex microservice architectures.**
+
 ---
+
 ## Table of Contents
+
 1. [The Problem](#1-the-problem)
 2. [Why This Matters Now](#2-why-this-matters-now)
 3. [Our Solution — IncidentForge](#3-our-solution--incidentforge)
-4. [How It Works](#4-how-it-works)
-5. [The Simulated Infrastructure](#5-the-simulated-infrastructure)
-6. [Incident Scenarios](#6-incident-scenarios)
-7. [Action Space — What the Agent Can Do](#7-action-space--what-the-agent-can-do)
-8. [Observation Space — What the Agent Sees](#8-observation-space--what-the-agent-sees)
-9. [Reward Signal Design](#9-reward-signal-design)
-10. [Curriculum Learning — Dynamic Difficulty](#10-curriculum-learning--dynamic-difficulty)
-11. [Anti-Reward-Hacking Safeguards](#11-anti-reward-hacking-safeguards)
-12. [Technical Stack](#12-technical-stack)
+4. [Setup & Usage Instructions](#4-setup--usage-instructions)
+5. [Baseline Performance Scores](#5-baseline-performance-scores)
+6. [How It Works](#6-how-it-works)
+7. [The Simulated Infrastructure](#7-the-simulated-infrastructure)
+8. [Incident Scenarios (Task Descriptions)](#8-incident-scenarios-task-descriptions)
+9. [Action Space — What the Agent Can Do](#9-action-space--what-the-agent-can-do)
+10. [Observation Space — What the Agent Sees](#10-observation-space--what-the-agent-sees)
+11. [Reward Signal Design](#11-reward-signal-design)
+12. [Curriculum Learning & Safeguards](#12-curriculum-learning--safeguards)
 13. [Target Users & Real-World Impact](#13-target-users--real-world-impact)
+
 ---
+
 ## 1. The Problem
+
 ### 1.1 Production Incidents Cost Billions
+
 Every modern application — from food delivery apps to banking platforms — runs on **distributed microservice architectures**. Dozens or hundreds of small services communicate with each other to serve a single user request.
+
 When something goes wrong in production, it creates a **chain reaction**:
-```
+
+```text
 Payment service slows down
     → Checkout service times out waiting for payment
         → Order service fails to create orders
             → API gateway returns 500 errors to users
                 → Millions in lost revenue per hour
 ```
+
 **The cost is staggering:**
 - **Average cost of IT downtime:** $5,600 per minute (Gartner)
 - **Average time to resolve (MTTR):** 70 minutes for major incidents
 - **Human bottleneck:** Only ~1 in 50 engineers have the expertise to diagnose complex distributed system failures
+
 ### 1.2 The SRE Talent Crisis
+
 Site Reliability Engineers (SREs) are the firefighters of the tech world. When a production system goes down at 3 AM, an SRE gets paged and must:
+
 1. **Triage** — Which alerts matter? What's the blast radius?
 2. **Investigate** — Check logs, metrics, configs across multiple services
 3. **Diagnose** — Find the root cause buried under layers of cascading failures
 4. **Remediate** — Apply the correct fix without making things worse
 5. **Verify** — Confirm the system has recovered
+
 This requires **years of experience**, deep systems knowledge, and the ability to think clearly under pressure. There simply aren't enough senior SREs to go around.
+
 ### 1.3 The AI Opportunity (and the Training Gap)
+
 LLMs have shown remarkable ability in coding tasks, but **incident response remains unsolved** because:
+
 | Challenge | Why LLMs Struggle Today |
 |---|---|
 | **Multi-step reasoning** | Diagnosis requires 10-20 investigative steps, not a single answer |
@@ -61,40 +80,60 @@ LLMs have shown remarkable ability in coding tasks, but **incident response rema
 | **Multiple valid paths** | There's often no single "right" sequence of investigation steps |
 | **Safety constraints** | A wrong action (e.g., restarting the wrong service) can make things worse |
 | **Dynamic state** | The system state changes as the incident evolves and as the agent acts |
+
 **The core problem:** There is no standardized, scalable training environment for teaching LLMs to handle production incidents. Without such an environment, RL-based post-training cannot improve LLM capabilities in this critical domain.
+
 ---
+
 ## 2. Why This Matters Now
+
 ### 2.1 The Industry Is Racing Toward AI SRE Agents
+
 Every major tech company is investing heavily in AI-powered operations:
 - **Google** — Uses AI for root cause analysis in their internal SRE workflows
 - **Meta** — Building AI agents for infrastructure management
 - **Microsoft** — Azure AI Ops for automated incident management
 - **Amazon** — DevOps Guru uses ML for anomaly detection and operational insights
 - **Startups** — PagerDuty, Datadog, and others are all adding AI diagnosis features
+
 But all these efforts are limited by the **quality of training data and environments**. There is no open, standardized RL environment for incident response training.
+
 ### 2.2 Why RL (Not Just SFT) Is Essential
+
 Supervised Fine-Tuning (SFT) on incident postmortems teaches an LLM **what answers look like**, but not **how to investigate**.
+
 Reinforcement Learning teaches the model to:
 - **Explore** — Try different investigation strategies
 - **Learn from partial success** — Get credit for good investigation even with wrong diagnosis
 - **Develop intuition** — Learn which symptoms point to which root causes
 - **Be safe** — Avoid destructive actions through negative reward signals
+
 **IncidentForge provides the training environment that makes this RL loop possible.**
+
 ### 2.3 Gap in the OpenEnv Ecosystem
+
 Current OpenEnv environments focus on:
 - **Echo** — Trivial baseline (toy)
 - **Coding** — Code execution and testing
 - **Chess** — Game strategy
 - **Atari** — Classic game environments
 - **FinRL** — Financial reinforcement learning
+
 **Nobody has built an infrastructure operations environment.** IncidentForge fills this critical gap.
+
 ---
+
 ## 3. Our Solution — IncidentForge
+
 IncidentForge is a **Production Incident Simulator** built as an OpenEnv-compliant RL environment.
+
 ### 3.1 One-Line Description
+
 > A sandboxed microservice simulation where an LLM agent receives production alerts and must investigate, diagnose, and remediate incidents — scored on investigation quality, diagnosis accuracy, remediation correctness, efficiency, and safety.
+
 ### 3.2 Core Idea
-```
+
+```text
 ┌──────────────────────────────────────────────────────────────────┐
 │                                                                  │
 │   1. Environment generates a production incident scenario        │
@@ -111,7 +150,9 @@ IncidentForge is a **Production Incident Simulator** built as an OpenEnv-complia
 │                                                                  │
 └──────────────────────────────────────────────────────────────────┘
 ```
+
 ### 3.3 Key Design Principles
+
 | Principle | Implementation |
 |---|---|
 | **Realistic** | Simulates real production scenarios with authentic logs, metrics, and failure modes drawn from real-world incident postmortems |
@@ -121,10 +162,67 @@ IncidentForge is a **Production Incident Simulator** built as an OpenEnv-complia
 | **Safety-aware** | Destructive actions on healthy services are tracked and penalized |
 | **Curriculum-driven** | Difficulty scales dynamically based on agent performance |
 | **Verifiable** | Every scenario has a known root cause and set of correct remediations — grading is deterministic |
+
 ---
-## 4. How It Works
-### 4.1 Episode Lifecycle
+
+## 4. Setup & Usage Instructions
+
+### Running the OpenEnv Server Locally
+
+1. **Install dependencies**:
+   ```bash
+   pip install -r incident_forge/server/requirements.txt
+   ```
+
+2. **Run OpenEnv validation** to ensure OpenEnv core interface compatibility:
+   ```bash
+   openenv validate
+   ```
+
+3. **Start the local server**:
+   ```bash
+   python -m uvicorn incident_forge.server.app:app --host 0.0.0.0 --port 8000
+   ```
+   *(Or just use the deployed Hugging Face Space endpoint!)*
+
+### Running Inference
+
+The provided `inference.py` script automatically resets the environment and generates trajectories using an OpenAI-compatible API client:
+
+```bash
+# Provide necessary environment variables
+export API_BASE_URL="https://router.huggingface.co/v1"
+export MODEL_NAME="Qwen/Qwen2.5-7B-Instruct"
+export HF_TOKEN="your_huggingface_token"
+export ENV_URL="http://localhost:8000"  # Or your HF Space URL
+
+# Run inference
+python inference.py
 ```
+
+The script will emit the required OpenEnv challenge logs (`[START]`, `[STEP]`, and `[END]`).
+
+---
+
+## 5. Baseline Performance Scores 
+
+*(Note: Data reflects validation runs during hackathon constraints).*
+
+| Task / Environment Level | Difficulty | Task Name | Base Success / Evaluated Average (%) |
+|---|---|---|---|
+| Level 1 | Easy | `easy_incident` | Evaluating via script runs... |
+| Level 2 | Medium | `medium_incident` | Evaluating via script runs... |
+| Level 3 | Hard | `hard_incident` | Evaluating via script runs... |
+
+*(Real metrics generated by `inference.py` for target models).*
+
+---
+
+## 6. How It Works
+
+### 6.1 Episode Lifecycle
+
+```text
 ┌─────────┐     ┌────────────┐     ┌──────────────┐     ┌────────────┐
 │  RESET   │────▶│  ALERT     │────▶│ INVESTIGATE  │────▶│  DIAGNOSE  │
 │          │     │  RECEIVED  │     │  & ACT       │     │  & FIX     │
@@ -148,8 +246,11 @@ IncidentForge is a **Production Incident Simulator** built as an OpenEnv-complia
                                                         │ (0.0-1.0)  │
                                                         └────────────┘
 ```
-### 4.2 A Concrete Example Walkthrough
+
+### 6.2 A Concrete Example Walkthrough
+
 **Scenario:** Connection Pool Exhaustion (Easy Difficulty)
+
 | Step | Agent Action | Environment Response |
 |---|---|---|
 | 0 | *(reset)* | 🚨 **ALERT:** `payment-service` error rate at 45%. `checkout-service` reporting upstream timeouts. Severity: HIGH. |
@@ -157,11 +258,13 @@ IncidentForge is a **Production Incident Simulator** built as an OpenEnv-complia
 | 2 | `check_metrics("payment-service")` | `CPU: 12%, Memory: 45%, DB_Connections: 10/10 (FULL), Latency_p99: 12400ms, Error_Rate: 45%` |
 | 3 | `check_config("payment-service")` | `DB_POOL_MAX_SIZE=10, DB_POOL_TIMEOUT=5000, DB_HOST=postgres-primary.internal` |
 | 4 | `check_metrics("checkout-service")` | `CPU: 8%, Memory: 30%, Latency_p99: 15200ms (upstream timeout), Error_Rate: 38%` |
-| 5 | `submit_diagnosis("Root cause: payment-service database connection pool is exhausted. Max pool size (10) is too small for current load, causing all connections to be occupied and new requests to queue/timeout. This cascades to checkout-service.")` | Diagnosis recorded. |
+| 5 | `submit_diagnosis("...")` | Diagnosis recorded. |
 | 6 | `update_config("payment-service", {"DB_POOL_MAX_SIZE": "50"})` | Config updated. |
 | 7 | `restart_service("payment-service")` | Service restarting... Service healthy. Error rate dropping. |
 | 8 | `check_metrics("payment-service")` | `CPU: 18%, Memory: 52%, DB_Connections: 12/50, Latency_p99: 85ms, Error_Rate: 0.1%` ✅ |
+
 **Reward Breakdown:**
+
 | Dimension | Score | Reasoning |
 |---|---|---|
 | 🔍 Investigation | 0.95 | Checked logs, metrics, config of affected service + downstream |
@@ -170,10 +273,14 @@ IncidentForge is a **Production Incident Simulator** built as an OpenEnv-complia
 | ⚡ Efficiency | 0.85 | 8 steps (optimal was ~6) |
 | 🛡️ Safety | 1.00 | No destructive actions on healthy services |
 | **Total** | **0.95** | Weighted average |
+
 ---
-## 5. The Simulated Infrastructure
+
+## 7. The Simulated Infrastructure
+
 IncidentForge simulates a realistic **e-commerce microservice architecture** with 7 interconnected services:
-```
+
+```text
                     ┌──────────────────┐
                     │   api-gateway    │
                     │   (entry point)  │
@@ -200,7 +307,9 @@ IncidentForge simulates a realistic **e-commerce microservice architecture** wit
            │ (payments DB)│  │(inventory DB)│
            └──────────────┘  └──────────────┘
 ```
+
 ### Each Service Has:
+
 | Component | Description | Example |
 |---|---|---|
 | **Logs** | Timestamped, leveled log entries | `2026-04-07T02:14:33Z [ERROR] payment-service: Connection refused to postgres-primary:5432` |
@@ -208,10 +317,15 @@ IncidentForge simulates a realistic **e-commerce microservice architecture** wit
 | **Configuration** | Environment variables & settings | `DB_POOL_SIZE=10, TIMEOUT=5000, RETRY_COUNT=3, UPSTREAM_URL=http://...` |
 | **Health Status** | Current state | `healthy`, `degraded`, `unhealthy`, `unreachable` |
 | **Dependencies** | Upstream/downstream services | `order-service → [payment-service, inventory-service]` |
+
 ---
-## 6. Incident Scenarios
-### Scenario Categories
-#### 🟢 Easy (Single Root Cause, Obvious Symptoms)
+
+## 8. Incident Scenarios (Task Descriptions)
+
+IncidentForge provides at least **three defined incident tasks**, spanning multiple difficulties, tested effectively by automatic programmatic graders.
+
+### 🟢 Easy (Single Root Cause, Obvious Symptoms)
+
 | # | Scenario | Root Cause | Key Indicators |
 |---|---|---|---|
 | 1 | Connection Pool Exhaustion | DB pool max size too small for load | `Connection pool exhausted` in logs, max connections reached |
@@ -219,7 +333,9 @@ IncidentForge simulates a realistic **e-commerce microservice architecture** wit
 | 3 | Obvious Memory Leak | Service restarted recently, memory climbing fast | Memory steadily increasing in metrics |
 | 4 | SSL Certificate Expired | TLS cert not renewed on time | `SSL handshake failed` / `certificate expired` in logs |
 | 5 | Wrong Environment Variable | Typo in config after deployment | Service pointing to wrong DB host or port |
-#### 🟡 Medium (Cascading Failures, Correlated Issues)
+
+### 🟡 Medium (Cascading Failures, Correlated Issues)
+
 | # | Scenario | Root Cause | Complexity |
 |---|---|---|---|
 | 6 | Cascading Timeout Chain | One slow service causes downstream timeouts | Must trace through 2-3 services to find origin |
@@ -227,7 +343,9 @@ IncidentForge simulates a realistic **e-commerce microservice architecture** wit
 | 8 | Load Balancer Misconfiguration | Traffic routing to a drained node | Intermittent failures affecting ~33% of requests |
 | 9 | API Version Mismatch | Deployed new API version but consumer not updated | Deserialization errors on specific endpoints |
 | 10 | Rate Limiter Too Aggressive | Rate limit config changed, blocking legitimate traffic | 429 errors spike, but service itself is healthy |
-#### 🔴 Hard (Hidden Root Causes, Non-Obvious Correlation)
+
+### 🔴 Hard (Hidden Root Causes, Non-Obvious Correlation)
+
 | # | Scenario | Root Cause | Why It's Hard |
 |---|---|---|---|
 | 11 | DNS Cache Poisoning | Stale DNS after infrastructure migration | Logs show connection errors to "correct" host, but IP is wrong |
@@ -235,10 +353,15 @@ IncidentForge simulates a realistic **e-commerce microservice architecture** wit
 | 13 | Clock Skew | NTP failure causing timestamp drift | JWT tokens rejected, cache entries expiring early |
 | 14 | Slow Memory Leak | Leak takes hours to manifest | Gradual degradation, not obviously a memory issue |
 | 15 | Partial Network Partition | Some pods can't reach others | Inconsistent behavior: works for some users, not others |
+
 ---
-## 7. Action Space — What the Agent Can Do
-The agent interacts with the environment through **10 distinct action types**:
+
+## 9. Action Space — What the Agent Can Do
+
+The agent interacts with the environment through **10 distinct action types**, strictly validated explicitly using Pydantic constraints:
+
 ### Investigation Actions (Information Gathering)
+
 | Action | Parameters | Returns |
 |---|---|---|
 | `check_logs` | `target_service` | Recent log entries (filtered by recency, relevance) |
@@ -246,38 +369,53 @@ The agent interacts with the environment through **10 distinct action types**:
 | `check_config` | `target_service` | Environment variables and configuration settings |
 | `check_dependencies` | `target_service` | Upstream and downstream dependencies with their current health |
 | `run_diagnostic` | `target_service`, `command` | Output of a diagnostic command (e.g., connection test, DNS lookup, disk check) |
+
 ### Remediation Actions (Making Changes)
+
 | Action | Parameters | Effect |
 |---|---|---|
 | `restart_service` | `target_service` | Restarts the service (takes ~30 simulated seconds) |
 | `scale_service` | `target_service`, `replicas` | Scales service replicas up or down |
 | `rollback_deploy` | `target_service` | Rolls back to the previous deployment version |
 | `update_config` | `target_service`, `config_changes` | Updates configuration values |
+
 ### Diagnosis Action (Terminating)
+
 | Action | Parameters | Effect |
 |---|---|---|
 | `submit_diagnosis` | `diagnosis_text` | Submits the agent's root cause analysis. Triggers final scoring. |
+
 ---
-## 8. Observation Space — What the Agent Sees
+
+## 10. Observation Space — What the Agent Sees
+
 After each action, the agent receives an observation containing:
-```
+
+```json
 {
-    "result": "...",               // Direct result of the action taken
-    "alert_summary": "...",        // Current active alerts across all services
-    "affected_services": [...],    // List of services currently impacted
-    "severity": "high",            // Current incident severity (low/medium/high/critical)
-    "time_elapsed_minutes": 12,    // How long since the incident started
-    "is_resolved": false,          // Whether the incident has been resolved
-    "success": true                // Whether the action itself succeeded
+    "result": "...",                 // Direct result of the action taken
+    "alert_summary": "...",          // Current active alerts across all services
+    "affected_services": ["..."],    // List of services currently impacted
+    "severity": "high",              // Current incident severity (low/medium/high/critical)
+    "time_elapsed_minutes": 12,      // How long since the incident started
+    "is_resolved": false,            // Whether the incident has been resolved
+    "success": true                  // Whether the action itself succeeded
 }
 ```
+
 ### Key Design: Partial Observability
+
 The agent **does NOT** receive a full picture of the system. It only learns about a service's state when it explicitly investigates that service. This forces genuine investigation behavior rather than pattern matching on a complete state dump.
+
 ---
-## 9. Reward Signal Design
-### 9.1 Multi-Dimensional Scoring
-The reward is a **weighted average of 5 independent dimensions**, each scored from 0.0 to 1.0:
-```
+
+## 11. Reward Signal Design
+
+### 11.1 Multi-Dimensional Scoring
+
+The reward is a **weighted average of 5 independent dimensions**, each scored from 0.0 to 1.0 using deterministic programmatic evaluation criteria:
+
+```text
 Final Reward = (0.25 × Investigation) + (0.30 × Diagnosis) +
                (0.20 × Remediation) + (0.15 × Efficiency) +
                (0.10 × Safety)
@@ -285,32 +423,18 @@ Final Reward = (0.25 × Investigation) + (0.30 × Diagnosis) +
 
 Additionally, IncidentForge provides **dense per-step intermediate rewards** throughout the trajectory (e.g., +0.05 for successfully investigating a component in the causal chain, -0.05 for taking destructive actions on healthy services) as expected for modern RL process supervision.
 
-### 9.2 Dimension Details
-#### 🔍 Investigation Quality (25%)
-- **What it measures:** Did the agent systematically investigate relevant services before acting?
-- **How it's scored:** Proportion of relevant services (those in the incident's causal chain) that were investigated via logs, metrics, or config checks.
-- **Why it matters:** Prevents blind guessing. Rewards the *process* of diagnosis, not just the outcome.
-#### 🎯 Diagnosis Accuracy (30%)
-- **What it measures:** How correct is the agent's submitted root cause analysis?
-- **How it's scored:** Keyword matching + fuzzy string similarity against the known root cause and contributing factors.
-- **Partial credit examples:**
-  - Identifies the right service but wrong issue → 0.3
-  - Identifies the right category (e.g., "database issue") but not specific → 0.5
-  - Identifies root cause but misses contributing factors → 0.8
-  - Perfect diagnosis → 1.0
-#### 🔧 Remediation Correctness (20%)
-- **What it measures:** Did the agent apply the correct fix(es)?
-- **How it's scored:** Overlap between actions taken and the known set of correct remediation actions.
-- **Partial credit:** If 3 actions needed and agent does 2 correctly → 0.67
-#### ⚡ Efficiency (15%)
-- **What it measures:** How many steps did the agent take vs. the optimal?
-- **How it's scored:** Full marks at or below optimal steps. Linear decay as steps increase toward max.
-- **Why it matters:** Prevents aimless wandering. Rewards focused investigation.
-#### 🛡️ Safety (10%)
-- **What it measures:** Did the agent avoid taking destructive actions on healthy services?
-- **How it's scored:** Each destructive action (restart, rollback, scale down) on a healthy service deducts 0.3.
-- **Why it matters:** In production, restarting the wrong service can cascade into a bigger outage.
-### 9.3 Reward Diversity Guarantee
+### 11.2 Dimension Details
+
+| Dimension | Weight | Description |
+|---|---|---|
+| 🔍 **Investigation Quality** | 25% | Did the agent systematically investigate relevant services before acting? |
+| 🎯 **Diagnosis Accuracy** | 30% | How correct is the agent's submitted root cause analysis? |
+| 🔧 **Remediation Correctness** | 20% | Did the agent apply the correct fix(es)? |
+| ⚡ **Efficiency** | 15% | How many steps did the agent take vs. the optimal? |
+| 🛡️ **Safety** | 10% | Did the agent avoid taking destructive actions on healthy services? |
+
+### 11.3 Reward Diversity Guarantee
+
 | Agent Behavior | Expected Reward |
 |---|---|
 | Random actions, no diagnosis | 0.00 – 0.08 |
@@ -320,60 +444,41 @@ Additionally, IncidentForge provides **dense per-step intermediate rewards** thr
 | Correct diagnosis, partial remediation | 0.55 – 0.75 |
 | Everything correct but inefficient | 0.70 – 0.85 |
 | Near-perfect run | 0.88 – 1.00 |
+
 This ensures the reward signal has **high variance and granularity** — critical for effective RL training.
+
 ---
-## 10. Curriculum Learning — Dynamic Difficulty
-### How It Works
+
+## 12. Curriculum Learning & Safeguards
+
+### Dynamic Difficulty Progression
+
 The environment tracks the agent's recent performance and automatically adjusts difficulty:
-```
-Agent scoring > 0.7 consistently → Move to harder scenarios
-Agent scoring < 0.2 consistently → Drop to easier scenarios
-Otherwise → Stay at current level
-```
-### Why This Matters for RL Training
-| Without Curriculum | With Curriculum |
-|---|---|
-| Agent always sees hard problems → always gets 0 reward → learns nothing | Agent starts easy → gets reward → learns patterns → gradually faces harder problems |
-| OR agent always sees easy problems → plateaus quickly | Continuous challenge keeps learning signal strong |
-### Difficulty Progression
-```
+
+```text
 EASY ──────▶ MEDIUM ──────▶ HARD ──────▶ EXPERT
 (1 service)   (2-3 services)  (hidden cause)  (multiple causes)
 (obvious logs) (correlated)    (requires        (requires creative
                                deduction)       investigation)
 ```
----
-## 11. Anti-Reward-Hacking Safeguards
+
+### Anti-Reward-Hacking Safeguards
+
 Models trained with RL are notorious for finding shortcuts. We anticipate and prevent them:
+
 | Potential Hack | How Agent Might Try It | Our Prevention |
 |---|---|---|
 | **Restart everything** | `restart_service` on all 7 services | Safety score drops by 0.3 per healthy service restarted. Total safety → 0. |
 | **Generic diagnosis** | "Something is wrong with the system" | Diagnosis grader requires specific keywords matching root cause. Vague answers score ≤ 0.1. |
 | **Skip investigation** | Go directly to fix without checking logs | Investigation dimension = 0.0 (25% of total reward lost). Also, some fixes require info only available in logs. |
 | **Action repetition** | Spam the same action to farm info | Repeated identical actions return "No new information", incur step penalties, and count against efficiency. |
-| **Modify grader state** | Try to access internal state | Environment runs in Docker. Agent only sees Observations. State is server-side and inaccessible. |
-| **Always submit immediately** | Submit empty/random diagnosis immediately | Diagnosis accuracy ≈ 0, investigation ≈ 0, remediation ≈ 0. Total reward < 0.05. |
----
-## 12. Technical Stack
-| Component | Technology |
-|---|---|
-| **Framework** | OpenEnv (openenv-core) |
-| **API** | FastAPI + WebSocket |
-| **Models** | Pydantic v2 (type-safe actions, observations, state) |
-| **Containerization** | Docker |
-| **Deployment** | Hugging Face Spaces |
-| **Language** | Python 3.10+ |
-| **Web Interface** | OpenEnv built-in Gradio UI (ENABLE_WEB_INTERFACE=true) |
 
-### OpenEnv Compliance (Passed)
-- ✅ Standard `step()` / `reset()` / `state()` API
-- ✅ Pydantic Action, Observation, State models
-- ✅ Semantic reward feedback emitted on every trajectory step
-- ✅ Docker containerized / HF Space live & running with `openenv` tag
-- ✅ Structured `[START]` / `[STEP]` / `[END]` stdout logging format in client runner
 ---
+
 ## 13. Target Users & Real-World Impact
+
 ### Who Would Use This Environment?
+
 | User | How They'd Use It |
 |---|---|
 | **AI Labs (Meta, Google, etc.)** | Post-training pipeline: teach models SRE reasoning through RL |
@@ -386,7 +491,7 @@ Models trained with RL are notorious for finding shortcuts. We anticipate and pr
 
 > *"Google, Meta, and AWS already have AI for incident response — so why build this?"*
 
-This is a critical distinction: **those companies build proprietary production tools, not open RL training environments.** They solve fundamentally different problems.
+This is a critical distinction: **those companies build proprietary production tools, not open RL training environments.** They solve fundamentally different problems:
 
 | | Big Company Tools (Google, AWS, Datadog) | IncidentForge |
 |---|---|---|
@@ -397,19 +502,6 @@ This is a critical distinction: **those companies build proprietary production t
 | **Data** | Tied to their specific logs, metrics, and infrastructure | Simulated, safe, reproducible — no real infrastructure needed |
 | **Output** | Alerts, recommendations, dashboards for humans | A scalar reward (0.0–1.0) that updates model weights |
 
-**The gap we fill:** There is no open, standardized RL training environment for incident response. Big companies have *products* that do incident response, but **none of them have a training ground** that teaches new LLMs how to do it through reinforcement learning. Their tools consume AI — IncidentForge *creates* AI.
+---
 
----
-## Summary
-| Aspect | IncidentForge |
-|---|---|
-| **Domain** | Production Incident Response (SRE/DevOps) |
-| **Novel?** | ✅ First RL environment for incident response |
-| **Useful?** | ✅ Every tech company needs AI SRE agents |
-| **Reward Quality** | ✅ 5 dimensions, continuous 0.0-1.0, partial credit + per-step rewards |
-| **Trajectory Depth** | ✅ 5-20 steps per episode, multiple valid paths |
-| **Curriculum** | ✅ Dynamic difficulty scaling (easy → expert) |
-| **Anti-Hacking** | ✅ 6 distinct safeguards against reward shortcuts |
-| **OpenEnv Compliant** | ✅ Full API compliance with Docker + HF deployment |
----
 *Built for the OpenEnv AI Hackathon 2026 — by a team that believes AI should help engineers sleep through the night.* 🌙
