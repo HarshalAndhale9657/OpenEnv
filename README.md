@@ -2,7 +2,7 @@
 title: OpenEnv Test
 emoji: 🔥
 colorFrom: red
-colorTo: orange
+colorTo: blue
 sdk: docker
 pinned: false
 ---
