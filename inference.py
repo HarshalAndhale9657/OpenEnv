@@ -61,18 +61,21 @@ TASKS = [
 
 # ── Environment communication ────────────────────────────────────────
 
+from incident_forge.server.incident_environment import IncidentEnvironment
+from incident_forge.models import IncidentAction
+local_env = IncidentEnvironment()
+
 def env_reset(difficulty="easy"):
-    """Reset the environment with the given difficulty."""
-    resp = requests.post(f"{ENV_URL}/reset", json={"difficulty": difficulty}, timeout=30)
-    resp.raise_for_status()
-    return resp.json()
+    """Reset the local environment."""
+    obs = local_env.reset(difficulty=difficulty)
+    return {"observation": json.loads(obs.model_dump_json())}
 
 
 def env_step(action_dict):
-    """Take a step in the environment."""
-    resp = requests.post(f"{ENV_URL}/step", json=action_dict, timeout=30)
-    resp.raise_for_status()
-    return resp.json()
+    """Take a step in the local environment."""
+    action = IncidentAction(**action_dict)
+    obs = local_env.step(action)
+    return {"observation": json.loads(obs.model_dump_json()), "reward": obs.reward, "done": obs.done}
 
 
 # ── LLM interaction ──────────────────────────────────────────────────
