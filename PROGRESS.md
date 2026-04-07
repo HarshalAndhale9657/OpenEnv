@@ -47,8 +47,8 @@
 - [x] .dockerignore
 - [x] Docker builds & runs locally
 - [x] ENABLE_WEB_INTERFACE=true
-- [ ] Deploy to HF Spaces
-- [ ] ✅ Gate: HF Space live, web UI works
+- [x] Deploy to HF Spaces (harshal9657/openenv-test)
+- [x] ✅ Gate: HF Space live, web UI works
 
 ## Phase 6: Inference + Polish (6-8h) ✅ COMPLETE
 - [x] inference.py with HF router (no OpenAI key)

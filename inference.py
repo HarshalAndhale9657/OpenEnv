@@ -1,25 +1,39 @@
 """
 IncidentForge Inference Script
-Runs N episodes of the RL loop using an LLM via HF Inference API.
+Runs episodes of the RL loop using an LLM via OpenAI-compatible API.
+
+Required environment variables:
+  API_BASE_URL  — LLM API endpoint (default: https://router.huggingface.co/v1)
+  MODEL_NAME    — Model identifier (default: Qwen/Qwen2.5-7B-Instruct)
+  HF_TOKEN      — Hugging Face API token (required, no default)
+  ENV_URL       — Environment server URL (default: http://localhost:8000)
 """
 import os
+import sys
 import json
-import asyncio
-from huggingface_hub import AsyncInferenceClient
+import requests
+from openai import OpenAI
 
-from incident_forge import IncidentAction
-from incident_forge.client import IncidentForgeEnv
+# ── Required environment variables ────────────────────────────────────
+API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
+MODEL_NAME = os.getenv("MODEL_NAME", "Qwen/Qwen2.5-7B-Instruct")
+HF_TOKEN = os.getenv("HF_TOKEN")
+ENV_URL = os.getenv("ENV_URL", "http://localhost:8000")
 
-HF_TOKEN = os.environ.get("HF_TOKEN")
-MODEL = "Qwen/Qwen2.5-7B-Instruct"
-BASE_URL = os.environ.get("ENV_URL", "http://localhost:8000")
+if HF_TOKEN is None:
+    raise ValueError("HF_TOKEN environment variable is required")
+
+# ── Initialize OpenAI client ──────────────────────────────────────────
+client = OpenAI(base_url=API_BASE_URL, api_key=HF_TOKEN)
+
+ENV_NAME = "incident_forge"
 
 SYSTEM_PROMPT = """You are an expert Site Reliability Engineer investigating a production incident.
 You must interact with the environment via JSON actions.
 The action_type must be one of:
 - check_logs: Get recent logs for a target_service
 - check_metrics: Get metrics for a target_service
-- check_config: Get env/config for a target_service 
+- check_config: Get env/config for a target_service
 - check_dependencies: Check upstream/downstream services for target_service
 - run_diagnostic: Run specific diag cmd (e.g., {"command": "health_check"}) in parameters
 - restart_service: Restart target_service
@@ -37,77 +51,191 @@ You must respond with ONLY valid JSON code representing your next action. Exampl
 }
 """
 
-def parse_action(content: str) -> IncidentAction:
+# ── Three tasks at increasing difficulty ──────────────────────────────
+TASKS = [
+    {"name": "easy_incident", "difficulty": "easy"},
+    {"name": "medium_incident", "difficulty": "medium"},
+    {"name": "hard_incident", "difficulty": "hard"},
+]
+
+
+# ── Environment communication ────────────────────────────────────────
+
+def env_reset(difficulty="easy"):
+    """Reset the environment with the given difficulty."""
+    resp = requests.post(f"{ENV_URL}/reset", json={"difficulty": difficulty}, timeout=30)
+    resp.raise_for_status()
+    return resp.json()
+
+
+def env_step(action_dict):
+    """Take a step in the environment."""
+    resp = requests.post(f"{ENV_URL}/step", json=action_dict, timeout=30)
+    resp.raise_for_status()
+    return resp.json()
+
+
+# ── LLM interaction ──────────────────────────────────────────────────
+
+def get_llm_action(transcript):
+    """Get the next action from the LLM via OpenAI-compatible API."""
+    messages = [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {
+            "role": "user",
+            "content": (
+                f"Current investigation history:\n{transcript}\n\n"
+                "What is your next JSON action?"
+            ),
+        },
+    ]
+    response = client.chat.completions.create(
+        model=MODEL_NAME,
+        messages=messages,
+        max_tokens=300,
+    )
+    return response.choices[0].message.content
+
+
+def parse_action(content):
+    """Parse LLM output into action dict, stripping markdown fences."""
     content = content.replace("```json", "").replace("```", "").strip()
-    data = json.loads(content)
-    return IncidentAction(**data)
+    # Handle cases where LLM wraps in extra text
+    start = content.find("{")
+    end = content.rfind("}") + 1
+    if start != -1 and end > start:
+        content = content[start:end]
+    return json.loads(content)
 
-async def run_episode(client: AsyncInferenceClient, env: IncidentForgeEnv):
-    """Run a single episode of incident response."""
-    result = await env.reset()
-    total_reward = 0
-    trajectory = []
-    
-    # We maintain a transcript of interaction for context
-    transcript = f"ALERT RECEIVED: {result.observation.alert_summary}\n"
-    
-    for step in range(20):
-        # Build prompt from environment result and transcript
-        obs = result.observation
-        transcript += f"\n[Observation Step {step}]\nResult: {obs.result}\nAffected: {obs.affected_services}\n"
-        
-        try:
-            # Query the model
-            messages = [
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": f"Current History:\n{transcript}\nWhat is your next JSON action?"}
-            ]
-            response = await client.chat.completions.create(
-                model=MODEL,
-                messages=messages,
-                max_tokens=256
-            )
-            content = response.choices[0].message.content
-            
-            # Record it
-            transcript += f"\n[Agent Action Step {step}]\n{content}\n"
-            
-            # Parse action
-            action = parse_action(content)
-            
-            # Step the environment
-            result = await env.step(action)
-            trajectory.append(action.model_dump())
-            
-            if result.done:
-                total_reward = result.reward
-                break
-                
-        except Exception as e:
-            # If the LLM generates bad JSON or crashes, report it
-            print(f"Error in episode loop: {e}")
-            break
-            
-    return total_reward, len(trajectory)
 
-async def main():
-    if not HF_TOKEN:
-         print("Warning: HF_TOKEN not set. Running inference requires a valid Hugging Face token.")
-    
-    client = AsyncInferenceClient(token=HF_TOKEN)
-    env = IncidentForgeEnv(base_url=BASE_URL)
-    
+def format_action_str(action_dict):
+    """Format action for [STEP] log line."""
+    atype = action_dict.get("action_type", "unknown")
+    target = action_dict.get("target_service", "")
+    if target:
+        return f"{atype}({target})"
+    return f"{atype}()"
+
+
+# ── Task runner ──────────────────────────────────────────────────────
+
+def run_task(task_name, difficulty):
+    """Run a single task (episode) and emit structured output."""
     rewards = []
-    for i in range(5): # run 5 for demo purposes
-        print(f"--- Starting Episode {i+1} ---")
-        reward, steps = await run_episode(client, env)
-        rew_val = reward if reward is not None else 0
-        rewards.append(rew_val)
-        print(f"Episode {i+1}: reward={rew_val:.4f}, steps={steps}")
-    
-    if rewards:
-        print(f"\nResults: avg={sum(rewards)/len(rewards):.4f}, "
-              f"min={min(rewards):.4f}, max={max(rewards):.4f}")
+    step_num = 0
+    success = False
+
+    # [START] line
+    print(f"[START] task={task_name} env={ENV_NAME} model={MODEL_NAME}")
+    sys.stdout.flush()
+
+    try:
+        # Reset the environment
+        reset_data = env_reset(difficulty)
+        obs = reset_data.get("observation", reset_data)
+
+        # Build initial transcript from alert
+        alert = obs.get("alert_summary", obs.get("result", "No alert"))
+        affected = obs.get("affected_services", [])
+        severity = obs.get("severity", "unknown")
+        transcript = (
+            f"ALERT RECEIVED:\n{alert}\n"
+            f"Affected services: {affected}\n"
+            f"Severity: {severity}\n"
+        )
+
+        for i in range(1, 21):  # Max 20 steps
+            step_num = i
+
+            # Get LLM action
+            try:
+                raw_content = get_llm_action(transcript)
+                action_dict = parse_action(raw_content)
+                action_str = format_action_str(action_dict)
+                error_msg = None
+            except Exception as e:
+                error_msg = str(e).replace("\n", " ")[:200]
+                action_str = "parse_error()"
+                print(
+                    f"[STEP] step={step_num} action={action_str} "
+                    f"reward=0.00 done=false error={error_msg}"
+                )
+                sys.stdout.flush()
+                rewards.append(0.0)
+                break
+
+            # Step the environment
+            try:
+                step_data = env_step(action_dict)
+                obs_data = step_data.get("observation", step_data)
+
+                # Extract reward — check both top-level and nested
+                reward = step_data.get("reward")
+                if reward is None:
+                    reward = obs_data.get("reward")
+                reward = float(reward) if reward is not None else 0.0
+
+                # Extract done flag
+                done = step_data.get("done", False)
+                if not done:
+                    done = obs_data.get("done", False)
+
+                error_msg = None
+            except Exception as e:
+                error_msg = str(e).replace("\n", " ")[:200]
+                reward = 0.0
+                done = False
+
+            rewards.append(reward)
+            done_str = "true" if done else "false"
+            error_str = error_msg if error_msg else "null"
+
+            # [STEP] line
+            print(
+                f"[STEP] step={step_num} action={action_str} "
+                f"reward={reward:.2f} done={done_str} error={error_str}"
+            )
+            sys.stdout.flush()
+
+            if done:
+                success = reward > 0.3
+                break
+
+            # Update transcript for next LLM call
+            result = obs_data.get("result", "")
+            transcript += (
+                f"\n[Step {i}] Action: {json.dumps(action_dict)}\n"
+                f"Result: {result}\n"
+                f"Affected: {obs_data.get('affected_services', [])}\n"
+                f"Severity: {obs_data.get('severity', 'unknown')}\n"
+            )
+
+    except Exception as e:
+        if not rewards:
+            rewards.append(0.0)
+        error_msg = str(e).replace("\n", " ")[:200]
+        print(
+            f"[STEP] step={step_num or 1} action=error() "
+            f"reward=0.00 done=true error={error_msg}"
+        )
+        sys.stdout.flush()
+
+    # [END] line — always emitted
+    success_str = "true" if success else "false"
+    rewards_str = ",".join(f"{r:.2f}" for r in rewards)
+    print(f"[END] success={success_str} steps={step_num} rewards={rewards_str}")
+    sys.stdout.flush()
+
+    return rewards
+
+
+def main():
+    """Run all three tasks: easy, medium, hard."""
+    all_rewards = []
+    for task in TASKS:
+        task_rewards = run_task(task["name"], task["difficulty"])
+        all_rewards.extend(task_rewards)
+
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()

@@ -126,12 +126,16 @@ class IncidentEnvironment(
         action_key = f"{action.action_type}:{action.target_service}"
         self._action_counts[action_key] = self._action_counts.get(action_key, 0) + 1
 
+        # Compute per-step intermediate reward BEFORE routing
+        # (so we know if this is the first investigation of a service)
+        step_reward = self._compute_step_reward(action)
+
         # Route action
         result = self._handle_action(action)
 
         # Check termination
         done = False
-        reward = None
+        reward = step_reward  # Always return a numeric reward
         is_resolved = self._state.incident_resolved
 
         if self._state.diagnosis_submitted or self._state.step_count >= self._state.max_steps:
@@ -145,7 +149,7 @@ class IncidentEnvironment(
                 diagnosis_submitted=self._state.diagnosis_submitted,
                 submitted_diagnosis=self._state.submitted_diagnosis,
             )
-            reward = total_reward
+            reward = total_reward  # Override with full episode reward
             self._state.reward_breakdown = breakdown
             self._curriculum.update(total_reward)
             self._log_end(total_reward, breakdown)
@@ -244,6 +248,66 @@ class IncidentEnvironment(
         """Track which services the agent has investigated."""
         if service_name not in self._state.services_investigated:
             self._state.services_investigated.append(service_name)
+
+    # ── Per-step reward (dense feedback) ──────────────────────────────
+
+    def _compute_step_reward(self, action: IncidentAction) -> float:
+        """Compute intermediate per-step reward for dense RL feedback.
+
+        Provides incremental reward on every step so the training signal
+        is not sparse.  The terminal step overrides this with the full
+        5-dimensional episode reward from the RewardEngine.
+
+        Reward ranges per step: roughly -0.10 to +0.10.
+        """
+        assert self._current_scenario is not None
+
+        r = 0.0
+        affected = set(self._current_scenario.affected_services)
+
+        investigation_types = {
+            ActionType.CHECK_LOGS, ActionType.CHECK_METRICS,
+            ActionType.CHECK_CONFIG, ActionType.RUN_DIAGNOSTIC,
+        }
+        remediation_types = {
+            ActionType.RESTART_SERVICE, ActionType.SCALE_SERVICE,
+            ActionType.ROLLBACK_DEPLOY, ActionType.UPDATE_CONFIG,
+        }
+
+        action_key = f"{action.action_type}:{action.target_service}"
+        repeat_count = self._action_counts.get(action_key, 0)
+
+        # ── Investigation rewards ─────────────────────────────────────
+        if action.action_type in investigation_types:
+            if action.target_service in affected:
+                # First time investigating a relevant service → high reward
+                if action.target_service not in self._state.services_investigated:
+                    r += 0.05
+                else:
+                    r += 0.01  # Re-investigating (still useful but less)
+            else:
+                r += 0.01  # Investigating non-affected service
+
+        elif action.action_type == ActionType.CHECK_DEPENDENCIES:
+            r += 0.02  # Dependency checking is always somewhat useful
+
+        # ── Remediation rewards / penalties ───────────────────────────
+        elif action.action_type in remediation_types:
+            if len(self._state.services_investigated) == 0:
+                r -= 0.03  # Penalty: remediating before investigating
+
+            correct_actions = set(self._current_scenario.correct_remediation)
+            action_str = f"{action.action_type.value}:{action.target_service}"
+            if action_str in correct_actions:
+                r += 0.08  # Correct remediation action
+            elif action.target_service not in affected:
+                r -= 0.05  # Destructive action on healthy service
+
+        # ── Repetition penalty ────────────────────────────────────────
+        if repeat_count > 2:
+            r -= 0.02
+
+        return round(max(-0.10, min(0.10, r)), 4)
 
     # ── Structured logging ────────────────────────────────────────────
 
