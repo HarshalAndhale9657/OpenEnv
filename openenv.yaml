@@ -8,5 +8,5 @@ description: >
   generation, 5-dimensional reward scoring, and curriculum learning.
 type: agent-env
 runtime: docker
-app: server/app.py
+app: incident_forge.server.app:app
 port: 8000

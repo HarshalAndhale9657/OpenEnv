@@ -226,7 +226,8 @@ def run_task(task_name, difficulty):
     # [END] line — always emitted
     success_str = "true" if success else "false"
     rewards_str = ",".join(f"{r:.2f}" for r in rewards)
-    print(f"[END] success={success_str} steps={step_num} rewards={rewards_str}")
+    score_val = max(0.0, min(sum(rewards), 1.0)) if rewards else 0.0
+    print(f"[END] success={success_str} steps={step_num} score={score_val:.2f} rewards={rewards_str}")
     sys.stdout.flush()
 
     return rewards

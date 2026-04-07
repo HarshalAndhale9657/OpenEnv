@@ -1,0 +1,15 @@
+[project]
+name = "incident_forge"
+version = "1.0.0"
+description = "IncidentForge OpenEnv RL simulator"
+dependencies = [
+    "pydantic",
+    "fastapi",
+    "uvicorn",
+    "openai",
+    "requests",
+    "openenv-core>=0.2.0"
+]
+
+[project.scripts]
+server = "server.app:main"
