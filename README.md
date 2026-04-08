@@ -24,15 +24,17 @@ tags:
 2. [Why This Matters Now](#2-why-this-matters-now)
 3. [Our Solution — IncidentForge](#3-our-solution--incidentforge)
 4. [Setup & Usage Instructions](#4-setup--usage-instructions)
-5. [Baseline Performance Scores](#5-baseline-performance-scores)
-6. [How It Works](#6-how-it-works)
-7. [The Simulated Infrastructure](#7-the-simulated-infrastructure)
-8. [Incident Scenarios (Task Descriptions)](#8-incident-scenarios-task-descriptions)
-9. [Action Space — What the Agent Can Do](#9-action-space--what-the-agent-can-do)
-10. [Observation Space — What the Agent Sees](#10-observation-space--what-the-agent-sees)
-11. [Reward Signal Design](#11-reward-signal-design)
-12. [Curriculum Learning & Safeguards](#12-curriculum-learning--safeguards)
-13. [Target Users & Real-World Impact](#13-target-users--real-world-impact)
+5. [Quick Demo / Test the Flow](#5-quick-demo--test-the-flow)
+6. [Baseline Performance Scores](#6-baseline-performance-scores)
+7. [How It Works](#7-how-it-works)
+8. [The Simulated Infrastructure](#8-the-simulated-infrastructure)
+9. [Incident Scenarios (Task Descriptions)](#9-incident-scenarios-task-descriptions)
+10. [Action Space — What the Agent Can Do](#10-action-space--what-the-agent-can-do)
+11. [Observation Space — What the Agent Sees](#11-observation-space--what-the-agent-sees)
+12. [Reward Signal Design](#12-reward-signal-design)
+13. [Curriculum Learning & Safeguards](#13-curriculum-learning--safeguards)
+14. [Target Users & Real-World Impact](#14-target-users--real-world-impact)
+15. [Validation & QA Verification](#15-validation--qa-verification)
 
 ---
 
@@ -204,7 +206,26 @@ The script will emit the required OpenEnv challenge logs (`[START]`, `[STEP]`, a
 
 ---
 
-## 5. Baseline Performance Scores 
+## 5. Quick Demo / Test the Flow
+
+To see IncidentForge in action or to test the environment flow, you can use an AI agent (like Antigravity or any other LLM-based coding assistant). Simply paste the following prompt into your agent's input:
+
+> **Agent Demo Prompt:**
+>
+> "You are an SRE agent assigned to resolve incidents in a microservice environment.
+> Connection Info:
+> Environment URL: https://devapurva-openenv-test.hf.space
+> Your Tools:
+> check_logs(service): See error traces.
+> check_metrics(service): See CPU/RAM/Error rates.
+> restart_service(service): Fix stuck processes.
+> run_diagnostic(service): Perform health checks.
+> submit_diagnosis(text): Finish the incident when fixed.
+> How to Start: Call the reset tool first to start a fresh incident and get your alert."
+
+---
+
+## 6. Baseline Performance Scores 
 
 *(Note: Data reflects baseline zero-shot evaluation on `gpt-4o-mini` runs generated via `inference.py`).*
 
@@ -227,7 +248,7 @@ By providing a highly dense, 5-dimensional continuous reward signal, IncidentFor
 
 ---
 
-## 6. How It Works
+## 7. How It Works
 
 ### 6.1 Episode Lifecycle
 
@@ -285,7 +306,7 @@ By providing a highly dense, 5-dimensional continuous reward signal, IncidentFor
 
 ---
 
-## 7. The Simulated Infrastructure
+## 8. The Simulated Infrastructure
 
 IncidentForge simulates a realistic **e-commerce microservice architecture** with 7 interconnected services:
 
@@ -329,7 +350,7 @@ IncidentForge simulates a realistic **e-commerce microservice architecture** wit
 
 ---
 
-## 8. Incident Scenarios (Task Descriptions)
+## 9. Incident Scenarios (Task Descriptions)
 
 IncidentForge provides at least **three defined incident tasks**, spanning multiple difficulties, tested effectively by automatic programmatic graders.
 
@@ -365,7 +386,7 @@ IncidentForge provides at least **three defined incident tasks**, spanning multi
 
 ---
 
-## 9. Action Space — What the Agent Can Do
+## 10. Action Space — What the Agent Can Do
 
 The agent interacts with the environment through **10 distinct action types**, strictly validated explicitly using Pydantic constraints:
 
@@ -396,7 +417,7 @@ The agent interacts with the environment through **10 distinct action types**, s
 
 ---
 
-## 10. Observation Space — What the Agent Sees
+## 11. Observation Space — What the Agent Sees
 
 After each action, the agent receives an observation containing:
 
@@ -418,7 +439,7 @@ The agent **does NOT** receive a full picture of the system. It only learns abou
 
 ---
 
-## 11. Reward Signal Design
+## 12. Reward Signal Design
 
 ### 11.1 Multi-Dimensional Scoring
 
@@ -458,7 +479,7 @@ This ensures the reward signal has **high variance and granularity** — critica
 
 ---
 
-## 12. Curriculum Learning & Safeguards
+## 13. Curriculum Learning & Safeguards
 
 ### Dynamic Difficulty Progression
 
@@ -484,7 +505,7 @@ Models trained with RL are notorious for finding shortcuts. We anticipate and pr
 
 ---
 
-## 13. Target Users & Real-World Impact
+## 14. Target Users & Real-World Impact
 
 ### Who Would Use This Environment?
 
@@ -513,7 +534,7 @@ This is a critical distinction: **those companies build proprietary production t
 
 ---
 
-## 14. Validation & QA Verification
+## 15. Validation & QA Verification
 To guarantee strict OpenEnv compliance and mathematical determinism against the Hackathon Rubric:
 
 ### 14.1 OpenEnv Native Validation
