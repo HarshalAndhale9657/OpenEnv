@@ -237,10 +237,10 @@ To see IncidentForge in action or to test the environment flow, you can use an A
 
 **Baseline Conclusion:** Out-of-the-box LLMs score ~55% because they excel at *Information Gathering (Investigation)* but completely fail at *Action Execution (Remediation)*. This validates the need for **RL Post-Training** to teach remediation behaviors—the exact capability IncidentForge is designed to train!
 
-### 5.1 Evidence of Need: Zero-Shot Baseline Profiling
+### 6.1 Evidence of Need: Zero-Shot Baseline Profiling
 ![Zero-Shot LLM Profiling](assets/baseline_radar.png)
 
-### 5.2 Expected Utility: RL Post-Training Capability
+### 6.2 Expected Utility: RL Post-Training Capability
 By providing a highly dense, 5-dimensional continuous reward signal, IncidentForge provides the exact feedback loop required for PPO/GRPO optimization algorithms to teach agents complex SRE remediation logic smoothly over time:
 ![Expected RL Learning Curve](assets/rl_learning_curve.png)
 
@@ -250,7 +250,7 @@ By providing a highly dense, 5-dimensional continuous reward signal, IncidentFor
 
 ## 7. How It Works
 
-### 6.1 Episode Lifecycle
+### 7.1 Episode Lifecycle
 
 ```text
 ┌─────────┐     ┌────────────┐     ┌──────────────┐     ┌────────────┐
@@ -277,7 +277,7 @@ By providing a highly dense, 5-dimensional continuous reward signal, IncidentFor
                                                         └────────────┘
 ```
 
-### 6.2 A Concrete Example Walkthrough
+### 7.2 A Concrete Example Walkthrough
 
 **Scenario:** Connection Pool Exhaustion (Easy Difficulty)
 
@@ -441,7 +441,7 @@ The agent **does NOT** receive a full picture of the system. It only learns abou
 
 ## 12. Reward Signal Design
 
-### 11.1 Multi-Dimensional Scoring
+### 12.1 Multi-Dimensional Scoring
 
 The reward is a **weighted average of 5 independent dimensions**, each scored from 0.0 to 1.0 using deterministic programmatic evaluation criteria:
 
@@ -453,7 +453,7 @@ Final Reward = (0.25 × Investigation) + (0.30 × Diagnosis) +
 
 Additionally, IncidentForge provides **dense per-step intermediate rewards** throughout the trajectory (e.g., +0.05 for successfully investigating a component in the causal chain, -0.05 for taking destructive actions on healthy services) as expected for modern RL process supervision.
 
-### 11.2 Dimension Details
+### 12.2 Dimension Details
 
 | Dimension | Weight | Description |
 |---|---|---|
@@ -463,7 +463,7 @@ Additionally, IncidentForge provides **dense per-step intermediate rewards** thr
 | ⚡ **Efficiency** | 15% | How many steps did the agent take vs. the optimal? |
 | 🛡️ **Safety** | 10% | Did the agent avoid taking destructive actions on healthy services? |
 
-### 11.3 Reward Diversity Guarantee
+### 12.3 Reward Diversity Guarantee
 
 | Agent Behavior | Expected Reward |
 |---|---|
@@ -537,14 +537,14 @@ This is a critical distinction: **those companies build proprietary production t
 ## 15. Validation & QA Verification
 To guarantee strict OpenEnv compliance and mathematical determinism against the Hackathon Rubric:
 
-### 14.1 OpenEnv Native Validation
+### 15.1 OpenEnv Native Validation
 ```bash
 $ openenv validate
 [OK] openEnv: Ready for multi-mode deployment
 ```
 *Proof that `openenv.yaml`, `pyproject.toml`, and the schema boundaries natively integrate with the OpenEnv ecosystem without proxy errors.*
 
-### 14.2 Mathematical Grader Determinism
+### 15.2 Mathematical Grader Determinism
 ```bash
 $ python test_environment.py
 Running deterministic grader and environment unit tests...
