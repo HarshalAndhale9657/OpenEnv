@@ -57,7 +57,7 @@ class RewardEngine:
         }
 
         total = sum(scores[k] * self.WEIGHTS[k] for k in scores)
-        total = round(max(0.0, min(1.0, total)), 4)
+        total = round(max(0.0001, min(0.9999, total)), 4)
 
         # Round individual scores for readability
         scores = {k: round(v, 4) for k, v in scores.items()}
