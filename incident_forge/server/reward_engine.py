@@ -57,10 +57,10 @@ class RewardEngine:
         }
 
         total = sum(scores[k] * self.WEIGHTS[k] for k in scores)
-        total = round(max(0.0001, min(0.9999, total)), 4)
+        total = round(max(0.01, min(0.99, total)), 4)
 
-        # Clamp individual scores to (0.0001, 0.9999) and round for readability
-        scores = {k: round(max(0.0001, min(0.9999, v)), 4) for k, v in scores.items()}
+        # Clamp individual scores to (0.01, 0.99) and round for readability
+        scores = {k: round(max(0.01, min(0.99, v)), 4) for k, v in scores.items()}
         return total, scores
 
     # ── Dimension scorers ─────────────────────────────────────────────

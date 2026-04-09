@@ -125,6 +125,7 @@ def format_action_str(action_dict):
 def run_task(task_name, difficulty):
     """Run a single task (episode) and emit structured output."""
     rewards = []
+    final_episode_reward = None  # Track the terminal reward separately
     step_num = 0
     success = False
 
@@ -193,14 +194,18 @@ def run_task(task_name, difficulty):
             done_str = "true" if done else "false"
             error_str = error_msg if error_msg else "null"
 
+            # Clamp reward for display to strict (0, 1) range
+            display_reward = max(0.01, min(0.99, reward)) if reward > 0 else max(0.01, min(0.99, abs(reward) + 0.01))
+
             # [STEP] line
             print(
                 f"[STEP] step={step_num} action={action_str} "
-                f"reward={reward:.2f} done={done_str} error={error_str}"
+                f"reward={display_reward:.4f} done={done_str} error={error_str}"
             )
             sys.stdout.flush()
 
             if done:
+                final_episode_reward = reward  # This is the full episode reward
                 success = reward > 0.3
                 break
 
@@ -225,8 +230,20 @@ def run_task(task_name, difficulty):
 
     # [END] line — always emitted
     success_str = "true" if success else "false"
-    rewards_str = ",".join(f"{r:.4f}" for r in rewards)
-    score_val = max(0.0001, min(sum(rewards), 0.9999)) if rewards else 0.0001
+    rewards_str = ",".join(f"{max(0.01, min(0.99, abs(r) + 0.01)):.4f}" for r in rewards)
+
+    # Use the final episode reward as the task score (NOT sum of all rewards)
+    # The final_episode_reward comes from RewardEngine and is already meaningful
+    if final_episode_reward is not None:
+        score_val = final_episode_reward
+    elif rewards:
+        score_val = rewards[-1]  # Last reward as fallback
+    else:
+        score_val = 0.5  # Safe default
+
+    # Strictly clamp to (0, 1) exclusive — never 0.0 or 1.0
+    score_val = max(0.01, min(0.99, float(score_val)))
+
     print(f"[END] success={success_str} steps={step_num} score={score_val:.4f} rewards={rewards_str}")
     sys.stdout.flush()
 

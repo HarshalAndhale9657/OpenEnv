@@ -313,30 +313,30 @@ class IncidentEnvironment(
 
     def _log_start(self) -> None:
         print(
-            f"[START] episode_id={self._state.episode_id} "
+            f"[ENV_START] episode_id={self._state.episode_id} "
             f"scenario={self._state.scenario_name} "
             f"difficulty={self._state.difficulty}",
-            file=sys.stdout,
+            file=sys.stderr,
             flush=True,
         )
 
     def _log_step(self, action: IncidentAction) -> None:
         print(
-            f"[STEP] episode_id={self._state.episode_id} "
+            f"[ENV_STEP] episode_id={self._state.episode_id} "
             f"step={self._state.step_count} "
             f"action={action.action_type.value} "
             f"target={action.target_service}",
-            file=sys.stdout,
+            file=sys.stderr,
             flush=True,
         )
 
     def _log_end(self, reward: float, breakdown: dict) -> None:
         print(
-            f"[END] episode_id={self._state.episode_id} "
+            f"[ENV_END] episode_id={self._state.episode_id} "
             f"steps={self._state.step_count} "
             f"reward={reward} "
             f"breakdown={breakdown} "
             f"diagnosis_submitted={self._state.diagnosis_submitted}",
-            file=sys.stdout,
+            file=sys.stderr,
             flush=True,
         )
