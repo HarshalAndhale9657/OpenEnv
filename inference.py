@@ -34,7 +34,7 @@ The action_type must be one of:
 - check_metrics: Get metrics for a target_service
 - check_config: Get env/config for a target_service
 - check_dependencies: Check upstream/downstream services for target_service
-- run_diagnostic: Run specific diag cmd (e.g., {"command": "health_check"}) in parameters
+- run_diagnostic: Run specific diag cmd. Valid commands: "health_check", "traceroute", "ping", "dns_lookup", "mem_check", "disk_check", "net_stat", "cpu_profile". Set {"command": "..."} in parameters
 - restart_service: Restart target_service
 - scale_service: Scale up/down by setting {"replicas": N} in parameters
 - rollback_deploy: Revert target_service to previous healthy version
@@ -60,9 +60,10 @@ TASKS = [
 
 # ── Environment communication ────────────────────────────────────────
 
-from incident_forge.server.incident_environment import IncidentEnvironment
-from incident_forge.models import IncidentAction
-local_env = IncidentEnvironment()
+import requests
+
+# Use a Session to persist cookies/session_id across OpenEnv HTTP endpoints
+http_session = requests.Session()
 
 # Fixed seeds per difficulty for reproducible baselines
 DIFFICULTY_SEEDS = {
@@ -72,17 +73,20 @@ DIFFICULTY_SEEDS = {
 }
 
 def env_reset(difficulty="easy"):
-    """Reset the local environment with a fixed seed for reproducibility."""
+    """Reset the remote or local environment via HTTP for evaluator compliance."""
     seed = DIFFICULTY_SEEDS.get(difficulty, 42)
-    obs = local_env.reset(difficulty=difficulty, seed=seed)
-    return {"observation": json.loads(obs.model_dump_json())}
+    response = http_session.post(f"{ENV_URL}/reset", json={"difficulty": difficulty, "seed": seed})
+    response.raise_for_status()
+    data = response.json()
+    return data if "observation" in data else {"observation": data}
 
 
 def env_step(action_dict):
-    """Take a step in the local environment."""
-    action = IncidentAction(**action_dict)
-    obs = local_env.step(action)
-    return {"observation": json.loads(obs.model_dump_json()), "reward": obs.reward, "done": obs.done}
+    """Take a step in the remote or local environment via HTTP."""
+    response = http_session.post(f"{ENV_URL}/step", json={"action": action_dict})
+    response.raise_for_status()
+    data = response.json()
+    return data if "observation" in data else {"observation": data, "reward": data.get("reward", 0.0), "done": data.get("done", False)}
 
 
 # ── LLM interaction ──────────────────────────────────────────────────

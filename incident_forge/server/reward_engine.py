@@ -106,7 +106,12 @@ class RewardEngine:
         )
         factor_bonus = min(0.10, factor_bonus)
 
-        return min(1.0, keyword_score * 0.60 + fuzzy_score * 0.30 + factor_bonus)
+        # Anti-gaming: Keyword length penalty
+        # If the agent submits a huge block of text guessing everything, penalize it.
+        total_chars = len(diagnosis)
+        length_penalty = max(0.0, (total_chars - 300) / 300) * 0.5  # Penalize if over 300 chars, up to 50% loss
+
+        return min(1.0, max(0.0, keyword_score * 0.60 + fuzzy_score * 0.30 + factor_bonus - length_penalty))
 
     def _score_remediation(
         self, actions_taken: List[Dict[str, Any]], scenario: Scenario

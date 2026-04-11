@@ -44,7 +44,7 @@ class IncidentAction(Action):
     )
     parameters: Dict[str, Any] = Field(
         default_factory=dict,
-        description="Additional parameters (e.g., diagnosis text, config changes, replica count)",
+        description="Additional parameters (e.g., config changes). For run_diagnostic, set {'command': 'health_check|traceroute|ping|dns_lookup|mem_check|disk_check|net_stat|cpu_profile'}",
     )
     reasoning: str = Field(
         default="", description="Agent's reasoning for this action (optional)"
