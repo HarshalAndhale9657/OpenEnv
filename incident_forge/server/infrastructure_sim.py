@@ -100,6 +100,7 @@ class ServiceState:
     # Internal — populated during scenario injection
     _error_pattern: Optional[str] = None
     _error_context: Optional[Dict[str, Any]] = None
+    _config_updated: bool = False
 
 
 class InfrastructureSimulator:
@@ -191,6 +192,18 @@ class InfrastructureSimulator:
             if svc and svc.health != "healthy":
                 self._alerts.append(
                     f"🚨 {svc.name} — status: {svc.health}, error rate: {svc.error_rate_percent}%"
+                )
+
+        # Inject subtle anomalies for red herring services (misleading but realistic)
+        for herring in getattr(scenario, "red_herrings", []):
+            svc_name = herring.get("service", "")
+            if svc_name in self.services:
+                svc = self.services[svc_name]
+                # Slightly elevated metrics — looks suspicious but is normal variance
+                svc.latency_p99_ms = round(svc.latency_p99_ms * self._rng.uniform(1.1, 1.4), 1)
+                svc.cpu_percent = round(min(55.0, svc.cpu_percent + self._rng.uniform(3, 12)), 1)
+                svc.error_rate_percent = round(
+                    min(3.0, svc.error_rate_percent + self._rng.uniform(0.2, 1.5)), 2
                 )
 
     # ── Queries (what the agent calls) ────────────────────────────────
@@ -381,9 +394,9 @@ class InfrastructureSimulator:
             return f"ERROR: Service '{service_name}' not found."
 
         old_health = svc.health
-        # Restart temporarily makes things worse, then potentially better
         svc.uptime_hours = 0.0
-        # If the issue is memory-related, restart helps temporarily
+
+        # ── Memory leak: restart clears heap ──────────────────────────
         if svc._error_pattern and "memory" in svc._error_pattern:
             svc.memory_percent = round(self._rng.uniform(25, 40), 1)
             svc.health = "healthy"
@@ -395,6 +408,133 @@ class InfrastructureSimulator:
                 f"  Memory cleared: {svc.memory_percent}%\n"
                 f"  ⚠️ Note: Memory leak may recur if root cause not addressed."
             )
+
+        # ── Direct-restart patterns: restart itself fixes the issue ───
+        elif svc._error_pattern in ("ssl_expired", "dns_cache_poisoning", "clock_skew"):
+            heal_reasons = {
+                "ssl_expired": "TLS certificate reloaded from renewed source",
+                "dns_cache_poisoning": "DNS cache flushed — resolving to correct IP",
+                "clock_skew": "NTP daemon restarted — clock synchronized",
+            }
+            reason = heal_reasons[svc._error_pattern]
+            svc.health = "healthy"
+            svc.error_rate_percent = round(self._rng.uniform(0.1, 1.0), 2)
+            svc.latency_p50_ms = round(self._rng.uniform(10, 40), 1)
+            svc.latency_p99_ms = round(self._rng.uniform(50, 150), 1)
+            svc._error_pattern = None
+            return (
+                f"Service {service_name} restarted successfully.\n"
+                f"  Previous health: {old_health}\n"
+                f"  Current health: healthy ✅\n"
+                f"  {reason}.\n"
+                f"  Error rate: {svc.error_rate_percent}%"
+            )
+
+        # ── DB replication lag: restart reconnects to primary ─────────
+        elif svc._error_pattern == "db_replication_lag":
+            svc.health = "healthy"
+            svc.error_rate_percent = round(self._rng.uniform(0.1, 1.0), 2)
+            svc.latency_p99_ms = round(self._rng.uniform(50, 150), 1)
+            svc._error_pattern = None
+            return (
+                f"Service {service_name} restarted successfully.\n"
+                f"  Previous health: {old_health}\n"
+                f"  Current health: healthy ✅\n"
+                f"  Database connections re-established to primary.\n"
+                f"  Stale replica connections cleared.\n"
+                f"  Error rate: {svc.error_rate_percent}%"
+            )
+
+        # ── Config-dependent: restart heals ONLY if config was fixed ──
+        elif svc._error_pattern == "connection_pool_exhausted" and svc._config_updated:
+            new_pool = int(svc.config.get("DB_POOL_MAX_SIZE", "20"))
+            svc.health = "healthy"
+            svc.error_rate_percent = round(self._rng.uniform(0.1, 0.5), 2)
+            svc.latency_p50_ms = round(self._rng.uniform(15, 35), 1)
+            svc.latency_p99_ms = round(self._rng.uniform(50, 120), 1)
+            svc.db_connections_active = self._rng.randint(5, max(6, new_pool // 2))
+            svc.db_connections_max = new_pool
+            svc._error_pattern = None
+            return (
+                f"Service {service_name} restarted successfully.\n"
+                f"  Previous health: {old_health}\n"
+                f"  Current health: healthy ✅\n"
+                f"  Connection pool: {svc.db_connections_active}/{new_pool}\n"
+                f"  Error rate: {svc.error_rate_percent}%\n"
+                f"  Latency p99: {svc.latency_p99_ms}ms"
+            )
+
+        elif svc._error_pattern == "disk_full" and svc._config_updated:
+            svc.health = "healthy"
+            svc.error_rate_percent = round(self._rng.uniform(0.1, 0.5), 2)
+            svc.disk_usage_percent = round(self._rng.uniform(40, 60), 1)
+            svc._error_pattern = None
+            return (
+                f"Service {service_name} restarted successfully.\n"
+                f"  Previous health: {old_health}\n"
+                f"  Current health: healthy ✅\n"
+                f"  Stale log files cleaned on restart.\n"
+                f"  Disk usage: {svc.disk_usage_percent}%\n"
+                f"  Log level updated — volume reduced."
+            )
+
+        elif svc._error_pattern == "rate_limiter_aggressive" and svc._config_updated:
+            svc.health = "healthy"
+            svc.error_rate_percent = round(self._rng.uniform(0.1, 1.0), 2)
+            svc._error_pattern = None
+            return (
+                f"Service {service_name} restarted successfully.\n"
+                f"  Previous health: {old_health}\n"
+                f"  Current health: healthy ✅\n"
+                f"  Rate limiter configuration reloaded.\n"
+                f"  Legitimate traffic now flowing normally."
+            )
+
+        elif svc._error_pattern == "lb_misconfigured" and svc._config_updated:
+            svc.health = "healthy"
+            svc.error_rate_percent = round(self._rng.uniform(0.1, 0.5), 2)
+            svc._error_pattern = None
+            return (
+                f"Service {service_name} restarted successfully.\n"
+                f"  Previous health: {old_health}\n"
+                f"  Current health: healthy ✅\n"
+                f"  Load balancer configuration reloaded.\n"
+                f"  All backends now active and receiving traffic."
+            )
+
+        # ── Cascading timeout: heals if config fixed OR upstream recovered ─
+        elif svc._error_pattern == "cascading_timeout":
+            upstream_target = (svc._error_context or {}).get("target", "")
+            upstream_svc = self._get_service(upstream_target)
+            upstream_fixed = upstream_svc is not None and upstream_svc.health == "healthy"
+            if upstream_fixed or svc._config_updated:
+                svc.health = "healthy"
+                svc.error_rate_percent = round(self._rng.uniform(0.1, 1.0), 2)
+                svc.latency_p50_ms = round(self._rng.uniform(15, 40), 1)
+                svc.latency_p99_ms = round(self._rng.uniform(50, 200), 1)
+                svc._error_pattern = None
+                reason = "Upstream dependency recovered" if upstream_fixed else "Timeout configuration applied"
+                return (
+                    f"Service {service_name} restarted successfully.\n"
+                    f"  Previous health: {old_health}\n"
+                    f"  Current health: healthy ✅\n"
+                    f"  {reason}.\n"
+                    f"  Error rate: {svc.error_rate_percent}%"
+                )
+
+        # ── No error pattern but degraded (indirect downstream effect) ─
+        elif svc.health != "healthy" and svc._error_pattern is None:
+            svc.health = "healthy"
+            svc.error_rate_percent = round(self._rng.uniform(0.1, 1.0), 2)
+            svc.latency_p99_ms = round(self._rng.uniform(50, 150), 1)
+            return (
+                f"Service {service_name} restarted successfully.\n"
+                f"  Previous health: {old_health}\n"
+                f"  Current health: healthy ✅\n"
+                f"  Downstream effects cleared — cached state reset."
+            )
+
+        # ── Fallback: root cause still present, restart doesn't help ──
         elif svc.health != "healthy":
             return (
                 f"Service {service_name} restarted.\n"
@@ -413,6 +553,20 @@ class InfrastructureSimulator:
         replicas = params.get("replicas", svc.replicas + 1)
         old_replicas = svc.replicas
         svc.replicas = replicas
+
+        # Network partition: new pods in healthy AZs restore connectivity
+        if svc._error_pattern == "network_partition" and replicas > old_replicas:
+            svc.health = "healthy"
+            svc.error_rate_percent = round(self._rng.uniform(1.0, 5.0), 2)
+            svc._error_pattern = None
+            return (
+                f"Scaled {service_name}: {old_replicas} → {replicas} replicas.\n"
+                f"  New pods scheduled across healthy availability zones.\n"
+                f"  Health: healthy ✅\n"
+                f"  Error rate: {svc.error_rate_percent}% (improving)\n"
+                f"  ℹ️ Cross-AZ connectivity restored via new pod placement."
+            )
+
         return (
             f"Scaled {service_name}: {old_replicas} → {replicas} replicas.\n"
             f"  ℹ️ New replicas may take 30-60s to be ready."
@@ -448,6 +602,7 @@ class InfrastructureSimulator:
         changes = {k: str(v) for k, v in params.items()}
         old_values = {k: svc.config.get(k, "<not set>") for k in changes}
         svc.config.update(changes)
+        svc._config_updated = True  # Track that config was modified
 
         lines = [f"Config updated for {service_name}:"]
         for k, v in changes.items():
@@ -461,6 +616,14 @@ class InfrastructureSimulator:
                 lines.append(f"  ℹ️ Pool size increased. Restart required to take effect.")
         elif svc._error_pattern == "wrong_env_var":
             lines.append(f"  ℹ️ Config applied. Restart required to reload.")
+        elif svc._error_pattern == "rate_limiter_aggressive":
+            lines.append(f"  ℹ️ Rate limit config updated. Restart required to take effect.")
+        elif svc._error_pattern == "lb_misconfigured":
+            lines.append(f"  ℹ️ Load balancer config updated. Restart required to take effect.")
+        elif svc._error_pattern == "disk_full":
+            lines.append(f"  ℹ️ Log config updated. Restart required to clear stale logs.")
+        elif svc._error_pattern == "cascading_timeout":
+            lines.append(f"  ℹ️ Timeout config updated. Restart required to take effect.")
 
         return "\n".join(lines)
 

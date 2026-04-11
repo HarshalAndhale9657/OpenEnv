@@ -133,6 +133,15 @@ class IncidentEnvironment(
         # Route action
         result = self._handle_action(action)
 
+        # Track incident resolution (primary service healed after remediation)
+        if (self._current_scenario is not None
+                and self._infra is not None
+                and not self._state.incident_resolved):
+            primary = self._current_scenario.primary_service
+            primary_svc = self._infra.services.get(primary)
+            if primary_svc and primary_svc.health == "healthy":
+                self._state.incident_resolved = True
+
         # Check termination
         done = False
         reward = step_reward  # Always return a numeric reward
@@ -302,6 +311,18 @@ class IncidentEnvironment(
                 r += 0.08  # Correct remediation action
             elif action.target_service not in affected:
                 r -= 0.05  # Destructive action on healthy service
+
+        # ── Verification bonus: checking after remediation ─────────────
+        if action.action_type in investigation_types:
+            remediation_targets: set[str] = set()
+            for prev in self._state.actions_taken[:-1]:
+                if prev.get("action_type") in (
+                    "restart_service", "scale_service",
+                    "rollback_deploy", "update_config",
+                ):
+                    remediation_targets.add(prev.get("target_service", ""))
+            if action.target_service in remediation_targets:
+                r += 0.03  # Verification: confirming fix worked
 
         # ── Repetition penalty ────────────────────────────────────────
         if repeat_count > 2:
