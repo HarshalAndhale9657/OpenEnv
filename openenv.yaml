@@ -11,6 +11,12 @@ runtime: docker
 app: incident_forge.server.app:app
 port: 8000
 
+action_space:
+  type: json
+  
+observation_space:
+  type: json
+
 tasks:
   - id: easy_incident
     name: "Easy Incident"

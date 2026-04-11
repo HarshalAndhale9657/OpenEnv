@@ -60,10 +60,12 @@ TASKS = [
 
 # ── Environment communication ────────────────────────────────────────
 
-import requests
+from openenv import GenericEnvClient, SyncEnvClient
 
-# Use a Session to persist cookies/session_id across OpenEnv HTTP endpoints
-http_session = requests.Session()
+# Initialize OpenEnv WebSocket client for stateful interaction
+async_client = GenericEnvClient(ENV_URL)
+env_client = SyncEnvClient(async_client)
+env_client.connect()
 
 # Fixed seeds per difficulty for reproducible baselines
 DIFFICULTY_SEEDS = {
@@ -73,20 +75,29 @@ DIFFICULTY_SEEDS = {
 }
 
 def env_reset(difficulty="easy"):
-    """Reset the remote or local environment via HTTP for evaluator compliance."""
+    """Reset the remote or local environment via OpenEnv SDK."""
     seed = DIFFICULTY_SEEDS.get(difficulty, 42)
-    response = http_session.post(f"{ENV_URL}/reset", json={"difficulty": difficulty, "seed": seed})
-    response.raise_for_status()
-    data = response.json()
-    return data if "observation" in data else {"observation": data}
+    state = env_client.reset(difficulty=difficulty, seed=seed)
+    
+    # Extract data from StepResult
+    obs_raw = state.observation
+    obs_dict = getattr(obs_raw, "model_dump", lambda: obs_raw)() if hasattr(obs_raw, "model_dump") else obs_raw
+    if not isinstance(obs_dict, dict):
+        obs_dict = obs_dict.__dict__ if hasattr(obs_dict, "__dict__") else obs_dict
+        
+    return {"observation": obs_dict, "reward": getattr(state, "reward", 0.0), "done": getattr(state, "done", False)}
 
 
 def env_step(action_dict):
-    """Take a step in the remote or local environment via HTTP."""
-    response = http_session.post(f"{ENV_URL}/step", json={"action": action_dict})
-    response.raise_for_status()
-    data = response.json()
-    return data if "observation" in data else {"observation": data, "reward": data.get("reward", 0.0), "done": data.get("done", False)}
+    """Take a step in the remote or local environment via OpenEnv SDK."""
+    state = env_client.step(action_dict)
+    
+    obs_raw = state.observation
+    obs_dict = getattr(obs_raw, "model_dump", lambda: obs_raw)() if hasattr(obs_raw, "model_dump") else obs_raw
+    if not isinstance(obs_dict, dict):
+        obs_dict = obs_dict.__dict__ if hasattr(obs_dict, "__dict__") else obs_dict
+        
+    return {"observation": obs_dict, "reward": getattr(state, "reward", 0.0), "done": getattr(state, "done", False)}
 
 
 # ── LLM interaction ──────────────────────────────────────────────────

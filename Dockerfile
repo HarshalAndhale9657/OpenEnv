@@ -9,12 +9,11 @@ LABEL description="Production Incident Response RL Environment for OpenEnv"
 # Set working directory
 WORKDIR /app
 
-# Copy requirements first for layer caching
-COPY incident_forge/server/requirements.txt /tmp/requirements.txt
-RUN pip install --no-cache-dir -r /tmp/requirements.txt && rm /tmp/requirements.txt
-
 # Copy the entire project source
 COPY . /app/
+
+# Install the package and dependencies
+RUN pip install --no-cache-dir .
 
 # Environment variables
 ENV ENABLE_WEB_INTERFACE=true
