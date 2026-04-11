@@ -11,7 +11,6 @@ Required environment variables:
 import os
 import sys
 import json
-import requests
 from openai import OpenAI
 
 # ── Required environment variables ────────────────────────────────────
@@ -65,9 +64,17 @@ from incident_forge.server.incident_environment import IncidentEnvironment
 from incident_forge.models import IncidentAction
 local_env = IncidentEnvironment()
 
+# Fixed seeds per difficulty for reproducible baselines
+DIFFICULTY_SEEDS = {
+    "easy": 42,
+    "medium": 137,
+    "hard": 256,
+}
+
 def env_reset(difficulty="easy"):
-    """Reset the local environment."""
-    obs = local_env.reset(difficulty=difficulty)
+    """Reset the local environment with a fixed seed for reproducibility."""
+    seed = DIFFICULTY_SEEDS.get(difficulty, 42)
+    obs = local_env.reset(difficulty=difficulty, seed=seed)
     return {"observation": json.loads(obs.model_dump_json())}
 
 
@@ -194,8 +201,8 @@ def run_task(task_name, difficulty):
             done_str = "true" if done else "false"
             error_str = error_msg if error_msg else "null"
 
-            # Clamp reward for display to strict (0, 1) range
-            display_reward = max(0.01, min(0.99, reward)) if reward > 0 else max(0.01, min(0.99, abs(reward) + 0.01))
+            # Display reward as-is for honest logging (don't distort negatives)
+            display_reward = round(max(-1.0, min(1.0, reward)), 4)
 
             # [STEP] line
             print(
@@ -230,7 +237,7 @@ def run_task(task_name, difficulty):
 
     # [END] line — always emitted
     success_str = "true" if success else "false"
-    rewards_str = ",".join(f"{max(0.01, min(0.99, abs(r) + 0.01)):.4f}" for r in rewards)
+    rewards_str = ",".join(f"{r:.4f}" for r in rewards)
 
     # Use the final episode reward as the task score (NOT sum of all rewards)
     # The final_episode_reward comes from RewardEngine and is already meaningful
@@ -244,7 +251,7 @@ def run_task(task_name, difficulty):
     # Strictly clamp to (0, 1) exclusive — never 0.0 or 1.0
     score_val = max(0.01, min(0.99, float(score_val)))
 
-    print(f"[END] success={success_str} steps={step_num} score={score_val:.4f} rewards={rewards_str}")
+    print(f"[END] success={success_str} steps={step_num} reward={score_val:.4f} rewards={rewards_str}")
     sys.stdout.flush()
 
     return rewards

@@ -10,3 +10,17 @@ type: agent-env
 runtime: docker
 app: incident_forge.server.app:app
 port: 8000
+
+tasks:
+  - id: easy_incident
+    name: "Easy Incident"
+    description: "Single root cause, obvious symptoms (e.g. connection pool full, disk full)."
+    difficulty: easy
+  - id: medium_incident
+    name: "Medium Incident"
+    description: "Cascading failures across 2-3 services (e.g. cascading timeout, DB replication lag)."
+    difficulty: medium
+  - id: hard_incident
+    name: "Hard Incident"
+    description: "Hidden root causes, non-obvious correlation (e.g. DNS cache poisoning, split-brain DB)."
+    difficulty: hard
