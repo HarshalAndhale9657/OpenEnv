@@ -266,7 +266,7 @@ def run_task(task_name, difficulty):
     # Strictly clamp to (0, 1) exclusive — never 0.0 or 1.0
     score_val = max(0.01, min(0.99, float(score_val)))
 
-    print(f"[END] success={success_str} steps={step_num} reward={score_val:.4f} rewards={rewards_str}")
+    print(f"[END] success={success_str} steps={step_num} score={score_val:.4f} rewards={rewards_str}")
     sys.stdout.flush()
 
     return rewards
