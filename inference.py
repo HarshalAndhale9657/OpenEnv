@@ -217,12 +217,12 @@ def run_task(task_name, difficulty):
             error_str = error_msg if error_msg else "null"
 
             # Display reward as-is for honest logging (don't distort negatives)
-            display_reward = round(max(-1.0, min(1.0, reward)), 4)
+            display_reward = round(max(-1.0, min(1.0, reward)), 2)
 
             # [STEP] line
             print(
                 f"[STEP] step={step_num} action={action_str} "
-                f"reward={display_reward:.4f} done={done_str} error={error_str}"
+                f"reward={display_reward:.2f} done={done_str} error={error_str}"
             )
             sys.stdout.flush()
 
@@ -252,7 +252,7 @@ def run_task(task_name, difficulty):
 
     # [END] line — always emitted
     success_str = "true" if success else "false"
-    rewards_str = ",".join(f"{r:.4f}" for r in rewards)
+    rewards_str = ",".join(f"{r:.2f}" for r in rewards)
 
     # Use the final episode reward as the task score (NOT sum of all rewards)
     # The final_episode_reward comes from RewardEngine and is already meaningful
@@ -266,7 +266,7 @@ def run_task(task_name, difficulty):
     # Strictly clamp to (0, 1) exclusive — never 0.0 or 1.0
     score_val = max(0.01, min(0.99, float(score_val)))
 
-    print(f"[END] success={success_str} steps={step_num} score={score_val:.4f} rewards={rewards_str}")
+    print(f"[END] success={success_str} steps={step_num} score={score_val:.2f} rewards={rewards_str}")
     sys.stdout.flush()
 
     return rewards
