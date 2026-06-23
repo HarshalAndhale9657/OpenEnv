@@ -18,7 +18,7 @@ tags:
 
 ---
 
-## Table of Contents
+## Table of Contents.
 
 1. [The Problem](#1-the-problem)
 2. [Why This Matters Now](#2-why-this-matters-now)
